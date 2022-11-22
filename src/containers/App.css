@@ -1,5 +1,5 @@
 *, *::before, *::after {
-
+    box-sizing: border-box;
 }
 
 body {
@@ -9,62 +9,4 @@ body {
     sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-}
-
-.container {
-    margin: 0 auto;
-    padding: 0 1em;
-    max-width: 1200px;
-}
-
-.App {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-}
-
-.App-header, .App-main, .App-footer {
-    border: 1px solid red;
-}
-
-.App-header {
-
-}
-
-.App-main {
-    flex: 1;
-    overflow: auto;
-}
-
-.App-main .container {
-    border: 2px solid gray;
-    display: flex;
-}
-
-.messages, .sidebar {
-    border: 2px solid orange;
-    padding: 1em;
-}
-
-.messages {
-    flex: 1;
-}
-
-.message {
-    padding: 1em;
-    margin-bottom: 1em;
-    border: 1px solid gray;
-}
-
-.message-header, .message-body, .message-footer {
-    border: 1px solid red;
-}
-
-.sidebar {
-
-}
-
-.App-footer {
-    height: 10vh;
-    background: linear-gradient(to bottom, transparent, black);
 }

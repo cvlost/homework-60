@@ -1,14 +1,11 @@
 import React, {FormEvent, useEffect, useRef, useState} from 'react';
+import type {Message} from "../types";
+import {Box, Container, Grid, InputLabel, Switch, Typography} from "@mui/material";
+import SendForm from "../components/SendForm/SendForm";
+import Preloader from "../components/Preloader/Preloader";
+import MessageList from "../components/MessageList/MessageList";
 import './App.css';
-import {Button, FormControl, Input, InputLabel, TextareaAutosize} from "@mui/material";
 
-
-type Message = {
-  message: string,
-  author: string,
-  datetime: string,
-  _id: string
-};
 
 const messagesUrl = 'http://146.185.154.90:8000/messages';
 
@@ -23,8 +20,12 @@ function App() {
   const [isNewFirst, setIsNewFirst] = useState(true);
   const [nickname, setNickname] = useState('');
   const [message, setMessage] = useState('');
+  const [isFetching, setIsFetching] = useState(false);
   const intervalId = useRef<null | number>(null);
   const param = useRef<string>('');
+
+  const orderedMessages = isNewFirst ? [...messages].reverse() : messages;
+
 
   const handleNicknameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNickname(e.target.value);
@@ -34,36 +35,47 @@ function App() {
     setMessage(e.target.value);
   }
 
-  const changeMessageLayout = () => {
-    setIsNewFirst(prev => !prev);
-    console.log('New first: ', isNewFirst);
-  };
+  const changeMessageLayout = () => setIsNewFirst(prev => !prev);
 
   const sendMessage = async (e: FormEvent) => {
-    console.log('submitted')
     e.preventDefault();
     const data = new URLSearchParams();
     data.set('message', message);
     data.set('author', nickname);
+
+    stopAutoRefresh();
+
     await fetch(messagesUrl, {
       method: 'post',
       body: data,
     });
 
+    getMessages(messagesUrl + param.current).catch(console.error);
+    autoRefresh();
+
     setMessage('');
   };
 
   const getMessages = async (url: string) => {
+    setIsFetching(true);
     const messages: Message[] = await request(url);
     if (messages.length) param.current = `?datetime=${messages[messages.length - 1].datetime}`;
     setMessages(prev => [...prev, ...messages]);
+    setIsFetching(false);
   };
 
+  const stopAutoRefresh = () => {
+    if (intervalId.current === null) return;
+    clearInterval(intervalId.current);
+    intervalId.current = null;
+  }
+
   const autoRefresh = () => {
+    if (intervalId.current !== null) return;
     intervalId.current = window.setInterval(async () => {
-      console.log(messagesUrl + param.current);
+      if (isFetching) return;
       getMessages(messagesUrl + param.current).catch(console.error);
-    }, 2500);
+    }, 3000);
   };
 
   useEffect(() => {
@@ -71,54 +83,74 @@ function App() {
     autoRefresh();
   }, []);
 
-  const renderMessage = (message: Message) => {
-    const date = new Date(message.datetime);
-    const dateString = date.toLocaleTimeString() + ' ' + date.toLocaleDateString();
-    return (
-      <div key={message._id} className="message">
-        <div className="message-header">
-          <span>From</span> {message.author}
-        </div>
-        <div className="message-body">{message.message}</div>
-        <div className="message-footer"><span>Date: </span>{dateString}</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="App">
-      <div className="App-header">
-        <div className="container">
-          <h1>Chat</h1>
-          <div className="options">
-            <label htmlFor="setting-show-new">New messages first</label>
-            <input type="checkbox" id="setting-show-new" checked={isNewFirst} onChange={changeMessageLayout}/>
-          </div>
-        </div>
-      </div>
-      <div className="App-main">
-        <div className="container">
-          <div className="messages">
-            {!isNewFirst ? messages.map(renderMessage) : [...messages].reverse().map(renderMessage)}
-          </div>
-          <div className="sidebar">
-            <form onSubmit={sendMessage}>
-              <FormControl>
-                <InputLabel htmlFor="nickname">Nickname</InputLabel>
-                <Input id="nickname" value={nickname} onChange={handleNicknameChange}/>
-                <TextareaAutosize placeholder="Message here..." value={message} onChange={handleMessageChange}/>
-                <Button type="submit">Send</Button>
-              </FormControl>
-            </form>
-          </div>
-        </div>
-      </div>
-      <div className="App-footer">
-        <div className="container">
-          footer
-        </div>
-      </div>
-    </div>
+    <Box style={{
+      display: "flex",
+      flexDirection: "column",
+      height: "100vh"
+    }}>
+      <Box sx={{
+        boxShadow: "0 0 10px gray",
+        position: 'relative',
+        zIndex: 1
+      }}>
+        <Container fixed>
+          <Box display="flex">
+            <Typography component="h1" fontSize="2.5em" marginRight="1em">Chat</Typography>
+            <Box sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center"
+            }}>
+              <InputLabel color="secondary" sx={{fontSize: ".8em"}}>
+                <Switch
+                  id="show-new"
+                  checked={isNewFirst}
+                  onChange={changeMessageLayout}
+                />
+                New Messages First
+              </InputLabel>
+            </Box>
+            <Preloader visible={isFetching}/>
+          </Box>
+        </Container>
+      </Box>
+      <Box sx={{
+        flex: "1",
+        overflow: "auto"
+      }}>
+        <Container fixed>
+          <Grid container spacing={2}>
+            <Grid item md={8}>
+              <MessageList messages={orderedMessages}/>
+            </Grid>
+            <Grid item md={4}>
+              <Box sx={{
+                position: "sticky",
+                top: "1em",
+              }}>
+                <SendForm
+                  sendMessage={sendMessage}
+                  nickname={nickname}
+                  handleNicknameChange={handleNicknameChange}
+                  message={message}
+                  handleMessageChange={handleMessageChange}
+                />
+              </Box>
+            </Grid>
+          </Grid>
+        </Container>
+      </Box>
+      <Box sx={{
+        height: "15vh",
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        width: "100%",
+        background: "linear-gradient(to bottom, transparent, white)",
+        pointerEvents: "none"
+      }}/>
+    </Box>
   );
 }
 
